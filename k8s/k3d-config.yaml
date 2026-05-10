@@ -1,0 +1,25 @@
+# k3d cluster config — creates a local cluster for development
+# Usage: k3d cluster create --config k8s/k3d-config.yaml
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: documind
+servers: 1
+agents: 2
+image: rancher/k3s:latest
+ports:
+  - port: 8080:80       # HTTP ingress
+    nodeFilters: [loadbalancer]
+  - port: 8443:443      # HTTPS ingress
+    nodeFilters: [loadbalancer]
+options:
+  k3d:
+    wait: true
+    timeout: "120s"
+  k3s:
+    extraArgs:
+      - arg: "--disable=traefik"   # use nginx ingress instead
+        nodeFilters: [server:*]
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
