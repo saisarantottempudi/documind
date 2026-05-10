@@ -1,0 +1,50 @@
+name: CD — Deploy to k3d
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: ["main"]
+
+jobs:
+  deploy:
+    name: Helm deploy → k3d (self-hosted or local)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.16.0"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Deploy via Helm
+        run: |
+          helm upgrade --install documind ./helm/documind \
+            --namespace documind \
+            --create-namespace \
+            --set image.tag=sha-${{ github.sha }} \
+            --set image.repository=ghcr.io/${{ github.repository_owner }}/documind \
+            --wait \
+            --timeout 5m
+
+      - name: Verify rollout
+        run: kubectl rollout status deployment/documind-api -n documind --timeout=3m
+
+      - name: Smoke test
+        run: |
+          POD=$(kubectl get pod -n documind -l app=documind-api -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec -n documind "$POD" -- \
+            python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/liveness').read())"
