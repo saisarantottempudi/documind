@@ -4,7 +4,7 @@ External services (Ollama, ChromaDB, Redis) are mocked at the service layer
 so tests run without any running containers.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
