@@ -1,0 +1,141 @@
+version: "3.9"
+
+# ── Local development stack ─────────────────────────────────────────────────────
+# docker compose up -d
+# API:      http://localhost:8000/docs
+# Metrics:  http://localhost:8000/metrics
+# Grafana:  http://localhost:3000   (admin/admin)
+# Prometheus: http://localhost:9090
+
+networks:
+  documind:
+    driver: bridge
+
+volumes:
+  chroma_data:
+  redis_data:
+  ollama_data:
+  prometheus_data:
+  grafana_data:
+
+services:
+
+  # ── Ollama (local LLM — Apple Silicon) ──────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: documind-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - documind
+    restart: unless-stopped
+    # Pull the model on first start
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull llama3.2:3b && wait"]
+
+  # ── ChromaDB (vector store) ──────────────────────────────────────────────────
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: documind-chroma
+    volumes:
+      - chroma_data:/chroma/.chroma/index
+    ports:
+      - "8001:8000"
+    networks:
+      - documind
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (response cache) ────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: documind-redis
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - documind
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── FastAPI application ───────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: documind-api
+    env_file:
+      - .env.example
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      REDIS_URL: redis://redis:6379
+      APP_ENV: development
+      LOG_LEVEL: debug
+    volumes:
+      - ./app:/app/app   # hot-reload in dev
+    ports:
+      - "8000:8000"
+    networks:
+      - documind
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Prometheus ────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: documind-prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - documind
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+
+  # ── Grafana ────────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: documind-grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - documind
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
