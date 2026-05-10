@@ -1,0 +1,55 @@
+groups:
+  - name: documind.api
+    interval: 30s
+    rules:
+      # ── Recording rules (pre-compute expensive queries) ────────────────────
+      - record: job:http_requests_total:rate5m
+        expr: rate(http_requests_total{job="documind-api"}[5m])
+
+      - record: job:http_request_duration_seconds:p99
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job="documind-api"}[5m]))
+
+      - record: job:http_request_duration_seconds:p95
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="documind-api"}[5m]))
+
+      # ── Alerting rules ─────────────────────────────────────────────────────
+      - alert: DocuMindHighErrorRate
+        expr: |
+          rate(http_requests_total{job="documind-api", status=~"5.."}[5m])
+          /
+          rate(http_requests_total{job="documind-api"}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DocuMind error rate above 5%"
+          description: "{{ $value | humanizePercentage }} of requests are failing."
+
+      - alert: DocuMindP99LatencyHigh
+        expr: job:http_request_duration_seconds:p99 > 10
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DocuMind P99 latency above 10s"
+          description: "P99 = {{ $value | humanizeDuration }}. Query pipeline may be slow."
+
+      - alert: DocuMindPodDown
+        expr: up{job="documind-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DocuMind API pod is down"
+          description: "Scrape target is unreachable for more than 1 minute."
+
+      - alert: DocuMindHighMemory
+        expr: |
+          container_memory_working_set_bytes{pod=~"documind-api.*"}
+          / container_spec_memory_limit_bytes{pod=~"documind-api.*"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DocuMind pod memory above 85%"
+          description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of its memory limit."
