@@ -1,0 +1,108 @@
+# NetworkPolicy — zero-trust: deny all ingress by default, then allow only
+# the exact traffic each workload legitimately needs.
+---
+# API pods: accept HTTP from ingress controller only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-api
+  namespace: documind
+spec:
+  podSelector:
+    matchLabels:
+      app: documind-api
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8000
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 8000   # Prometheus scrape
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: chromadb
+      ports:
+        - port: 8001
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app: ollama
+      ports:
+        - port: 11434
+    - ports:
+        - port: 53         # DNS
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# ChromaDB: only accept from API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-to-chroma
+  namespace: documind
+spec:
+  podSelector:
+    matchLabels:
+      app: chromadb
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: documind-api
+      ports:
+        - port: 8000
+---
+# Redis: only accept from API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-to-redis
+  namespace: documind
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: documind-api
+      ports:
+        - port: 6379
+---
+# Ollama: only accept from API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-to-ollama
+  namespace: documind
+spec:
+  podSelector:
+    matchLabels:
+      app: ollama
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: documind-api
+      ports:
+        - port: 11434

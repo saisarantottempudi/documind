@@ -1,0 +1,12 @@
+# PodDisruptionBudget — ensures at least 2 API pods survive any voluntary disruption
+# (node drain, cluster upgrades) so the service stays available.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: documind-api-pdb
+  namespace: documind
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: documind-api

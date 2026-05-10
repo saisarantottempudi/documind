@@ -1,0 +1,34 @@
+# Namespace-level ResourceQuota — caps total CPU and memory the documind
+# namespace can consume so it cannot starve other workloads on the node.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: documind-quota
+  namespace: documind
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "12"
+    limits.memory: 20Gi
+    pods: "30"
+    persistentvolumeclaims: "10"
+---
+# LimitRange — sets default requests/limits for any pod that omits them.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: documind-limitrange
+  namespace: documind
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      max:
+        cpu: "2"
+        memory: 6Gi
