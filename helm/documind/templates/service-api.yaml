@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "documind.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "documind.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "documind.selectorLabels" . | nindent 4 }}
+    app: documind-api
+  ports:
+    - name: http
+      port: {{ .Values.api.service.port }}
+      targetPort: {{ .Values.api.service.targetPort }}
+  type: {{ .Values.api.service.type }}

@@ -1,0 +1,63 @@
+{{- if .Values.chromadb.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "documind.fullname" . }}-chroma-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.chromadb.persistence.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "documind.fullname" . }}-chromadb
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "documind.labels" . | nindent 4 }}
+    app: chromadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chromadb
+  template:
+    metadata:
+      labels:
+        app: chromadb
+    spec:
+      containers:
+        - name: chromadb
+          image: "{{ .Values.chromadb.image.repository }}:{{ .Values.chromadb.image.tag }}"
+          ports:
+            - containerPort: 8000
+          resources:
+            {{- toYaml .Values.chromadb.resources | nindent 12 }}
+          volumeMounts:
+            - name: chroma-storage
+              mountPath: /chroma/.chroma/index
+          livenessProbe:
+            httpGet:
+              path: /api/v1/heartbeat
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: chroma-storage
+          persistentVolumeClaim:
+            claimName: {{ include "documind.fullname" . }}-chroma-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "documind.fullname" . }}-chromadb
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: chromadb
+  ports:
+    - port: 8001
+      targetPort: 8000
+{{- end }}

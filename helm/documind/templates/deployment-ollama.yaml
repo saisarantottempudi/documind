@@ -1,0 +1,71 @@
+{{- if .Values.ollama.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "documind.fullname" . }}-ollama-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.ollama.persistence.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "documind.fullname" . }}-ollama
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "documind.labels" . | nindent 4 }}
+    app: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      initContainers:
+        - name: pull-model
+          image: "{{ .Values.ollama.image.repository }}:{{ .Values.ollama.image.tag }}"
+          command: ["/bin/sh", "-c"]
+          args: ["ollama serve & sleep 5 && ollama pull {{ .Values.ollama.model }} && pkill ollama"]
+          volumeMounts:
+            - name: ollama-storage
+              mountPath: /root/.ollama
+      containers:
+        - name: ollama
+          image: "{{ .Values.ollama.image.repository }}:{{ .Values.ollama.image.tag }}"
+          ports:
+            - containerPort: 11434
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+          volumeMounts:
+            - name: ollama-storage
+              mountPath: /root/.ollama
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: ollama-storage
+          persistentVolumeClaim:
+            claimName: {{ include "documind.fullname" . }}-ollama-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "documind.fullname" . }}-ollama
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: ollama
+  ports:
+    - port: 11434
+      targetPort: 11434
+{{- end }}

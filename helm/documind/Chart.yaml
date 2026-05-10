@@ -1,0 +1,19 @@
+apiVersion: v2
+name: documind
+description: Enterprise AI Document Intelligence Platform — RAG with Chain-of-Thought
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - ai
+  - rag
+  - langchain
+  - fastapi
+  - mlops
+maintainers:
+  - name: saisarantottempudi
+dependencies:
+  - name: redis
+    version: "20.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled

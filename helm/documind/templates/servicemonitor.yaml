@@ -1,0 +1,19 @@
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "documind.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "documind.labels" . | nindent 4 }}
+    release: prometheus   # matches kube-prometheus-stack selector
+spec:
+  selector:
+    matchLabels:
+      {{- include "documind.selectorLabels" . | nindent 6 }}
+      app: documind-api
+  endpoints:
+    - port: http
+      path: {{ .Values.monitoring.serviceMonitor.path }}
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+{{- end }}

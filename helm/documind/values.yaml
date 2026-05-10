@@ -1,0 +1,103 @@
+# ── DocuMind Helm Values ────────────────────────────────────────────────────────
+
+# API deployment
+api:
+  image:
+    repository: ghcr.io/saisarantottempudi/documind
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8000
+  ingress:
+    enabled: true
+    className: nginx
+    host: documind.local
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "60m"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  env:
+    OLLAMA_MODEL: llama3.2:3b
+    EMBED_MODEL: all-MiniLM-L6-v2
+    LOG_LEVEL: info
+    APP_ENV: production
+    CHUNK_SIZE: "512"
+    CHUNK_OVERLAP: "64"
+    TOP_K: "5"
+    CACHE_TTL_SECONDS: "300"
+    MAX_UPLOAD_SIZE_MB: "50"
+
+# Ollama (local LLM)
+ollama:
+  enabled: true
+  image:
+    repository: ollama/ollama
+    tag: latest
+  model: llama3.2:3b
+  resources:
+    requests:
+      cpu: 500m
+      memory: 3Gi
+    limits:
+      cpu: 2000m
+      memory: 6Gi
+  persistence:
+    size: 10Gi
+
+# ChromaDB (vector store)
+chromadb:
+  enabled: true
+  image:
+    repository: chromadb/chroma
+    tag: latest
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  persistence:
+    size: 5Gi
+
+# Redis (via Bitnami subchart)
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 384Mi
+    persistence:
+      size: 1Gi
+    extraFlags:
+      - "--maxmemory 256mb"
+      - "--maxmemory-policy allkeys-lru"
+
+# Monitoring
+monitoring:
+  serviceMonitor:
+    enabled: true    # requires Prometheus Operator CRDs
+    interval: 15s
+    path: /metrics

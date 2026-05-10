@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "documind.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "documind.labels" . | nindent 4 }}
+data:
+  OLLAMA_BASE_URL: "http://{{ include "documind.fullname" . }}-ollama:11434"
+  OLLAMA_MODEL: {{ .Values.api.env.OLLAMA_MODEL | quote }}
+  CHROMA_HOST: "{{ include "documind.fullname" . }}-chromadb"
+  CHROMA_PORT: "8001"
+  REDIS_URL: "redis://{{ include "documind.fullname" . }}-redis-master:6379"
+  EMBED_MODEL: {{ .Values.api.env.EMBED_MODEL | quote }}
+  LOG_LEVEL: {{ .Values.api.env.LOG_LEVEL | quote }}
+  APP_ENV: {{ .Values.api.env.APP_ENV | quote }}
+  CHUNK_SIZE: {{ .Values.api.env.CHUNK_SIZE | quote }}
+  CHUNK_OVERLAP: {{ .Values.api.env.CHUNK_OVERLAP | quote }}
+  TOP_K: {{ .Values.api.env.TOP_K | quote }}
+  CACHE_TTL_SECONDS: {{ .Values.api.env.CACHE_TTL_SECONDS | quote }}
+  MAX_UPLOAD_SIZE_MB: {{ .Values.api.env.MAX_UPLOAD_SIZE_MB | quote }}
