@@ -59,13 +59,14 @@ def test_upload_unsupported_type(client):
 
 
 def test_upload_valid_text(client):
-    mock_result = MagicMock()
-    mock_result.model_dump.return_value = {
-        "doc_id": "abc-123",
-        "filename": "policy.txt",
-        "chunks_indexed": 5,
-        "message": "Successfully indexed 5 chunks.",
-    }
+    from app.models.schemas import DocumentUploadResponse
+
+    mock_result = DocumentUploadResponse(
+        doc_id="abc-123",
+        filename="policy.txt",
+        chunks_indexed=5,
+        message="Successfully indexed 5 chunks.",
+    )
     with patch("app.api.routes.documents.rag.ingest_document", return_value=mock_result):
         r = client.post(
             "/documents/upload",
