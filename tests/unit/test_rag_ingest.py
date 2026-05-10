@@ -1,11 +1,10 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 
 @patch("app.services.rag.vectorstore.index_chunks", return_value=3)
-@patch("app.services.rag.get_embeddings", return_value=MagicMock())
-def test_ingest_plain_text(mock_embeddings, mock_index):
+def test_ingest_plain_text(mock_index):
     from app.services.rag import ingest_document
 
     content = b"This is a plain text document with enough content to chunk properly." * 10
@@ -16,8 +15,7 @@ def test_ingest_plain_text(mock_embeddings, mock_index):
 
 
 @patch("app.services.rag.vectorstore.index_chunks", return_value=0)
-@patch("app.services.rag.get_embeddings", return_value=MagicMock())
-def test_ingest_empty_document_raises(mock_embeddings, mock_index):
+def test_ingest_empty_document_raises(mock_index):
     from app.services.rag import ingest_document
 
     with pytest.raises(ValueError, match="no text chunks"):
