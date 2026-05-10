@@ -1,6 +1,6 @@
-import uuid
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
+
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.embedder import get_embeddings
@@ -16,6 +16,7 @@ def get_vectorstore() -> Chroma:
 
 def _chroma_client_settings():
     import chromadb
+
     return chromadb.HttpClient(
         host=settings.chroma_host,
         port=settings.chroma_port,

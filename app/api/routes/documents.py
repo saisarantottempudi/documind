@@ -1,7 +1,8 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
+
 from app.core.config import settings
 from app.core.logging import logger
-from app.models.schemas import DocumentUploadResponse, DocumentListResponse, DocumentInfo
+from app.models.schemas import DocumentInfo, DocumentListResponse, DocumentUploadResponse
 from app.services import rag, vectorstore
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -27,10 +28,13 @@ async def upload_document(file: UploadFile = File(...)):
             detail=f"File exceeds {settings.max_upload_size_mb} MB limit.",
         )
     logger.info("document_upload_received", filename=file.filename, size_mb=round(size_mb, 2))
+    mime = file.content_type or "text/plain"
     try:
-        result = rag.ingest_document(content, file.filename or "upload", file.content_type or "text/plain")
+        result = rag.ingest_document(content, file.filename or "upload", mime)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     return result
 
 

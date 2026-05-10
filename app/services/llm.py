@@ -1,5 +1,7 @@
 from functools import lru_cache
+
 from langchain_ollama import OllamaLLM
+
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -37,7 +39,7 @@ def get_llm() -> OllamaLLM:
     return OllamaLLM(
         base_url=settings.ollama_base_url,
         model=settings.ollama_model,
-        temperature=0.1,       # low temp = more factual
+        temperature=0.1,  # low temp = more factual
         num_predict=1024,
     )
 

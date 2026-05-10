@@ -3,12 +3,14 @@ Integration tests for the FastAPI app using TestClient.
 External services (Ollama, ChromaDB, Redis) are mocked at the service layer
 so tests run without any running containers.
 """
+
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
-
 # --- Fixtures -----------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def client():
@@ -19,11 +21,13 @@ def client():
         patch("app.services.cache._get_client"),
     ):
         from app.main import app
+
         with TestClient(app, raise_server_exceptions=False) as c:
             yield c
 
 
 # --- Health endpoints ---------------------------------------------------
+
 
 def test_liveness(client):
     r = client.get("/liveness")
@@ -44,6 +48,7 @@ def test_health_returns_200(client):
 
 
 # --- Document endpoints ------------------------------------------------
+
 
 def test_upload_unsupported_type(client):
     r = client.post(
@@ -71,9 +76,10 @@ def test_upload_valid_text(client):
 
 
 def test_list_documents(client):
-    with patch("app.api.routes.documents.vectorstore.list_documents", return_value=[
-        {"doc_id": "x", "filename": "a.txt", "chunks": 2}
-    ]):
+    with patch(
+        "app.api.routes.documents.vectorstore.list_documents",
+        return_value=[{"doc_id": "x", "filename": "a.txt", "chunks": 2}],
+    ):
         r = client.get("/documents/")
     assert r.status_code == 200
     assert r.json()["total"] == 1
@@ -87,6 +93,7 @@ def test_delete_document_not_found(client):
 
 # --- Query endpoint ----------------------------------------------------
 
+
 def test_query_too_short(client):
     r = client.post("/query/", json={"question": "Hi"})
     assert r.status_code == 422
@@ -94,6 +101,7 @@ def test_query_too_short(client):
 
 def test_query_success(client):
     from app.models.schemas import QueryResponse
+
     mock_resp = QueryResponse(
         question="What is the leave policy?",
         answer="Employees get 20 days annual leave.",

@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from app.api.routes import documents, health, query
 from app.core.config import settings
-from app.core.logging import setup_logging, logger
-from app.api.routes import documents, query, health
+from app.core.logging import logger, setup_logging
 
 
 @asynccontextmanager
@@ -14,6 +15,7 @@ async def lifespan(app: FastAPI):
     logger.info("documind_starting", env=settings.app_env, model=settings.ollama_model)
     # Pre-load embedding model on startup so first request is not slow
     from app.services.embedder import get_embeddings
+
     get_embeddings()
     logger.info("documind_ready")
     yield

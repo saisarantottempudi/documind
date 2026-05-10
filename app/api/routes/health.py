@@ -1,6 +1,7 @@
 import httpx
 import redis
 from fastapi import APIRouter
+
 from app.core.config import settings
 from app.models.schemas import HealthResponse
 
@@ -27,6 +28,7 @@ def _check_redis() -> str:
 def _check_chromadb() -> str:
     try:
         import chromadb
+
         c = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
         c.heartbeat()
         return "ok"

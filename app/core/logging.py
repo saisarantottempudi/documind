@@ -1,5 +1,7 @@
 import logging
+
 import structlog
+
 from app.core.config import settings
 
 
@@ -15,7 +17,8 @@ def setup_logging() -> None:
             structlog.stdlib.add_logger_name,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
-            structlog.dev.ConsoleRenderer() if settings.app_env == "development"
+            structlog.dev.ConsoleRenderer()
+            if settings.app_env == "development"
             else structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(

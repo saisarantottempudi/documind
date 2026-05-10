@@ -1,7 +1,8 @@
 import hashlib
 import json
-from typing import Optional
+
 import redis
+
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -15,7 +16,7 @@ def _cache_key(question: str, top_k: int) -> str:
     return "documind:query:" + hashlib.sha256(payload.encode()).hexdigest()
 
 
-def get_cached(question: str, top_k: int) -> Optional[dict]:
+def get_cached(question: str, top_k: int) -> dict | None:
     try:
         client = _get_client()
         raw = client.get(_cache_key(question, top_k))

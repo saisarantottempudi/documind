@@ -1,21 +1,28 @@
 import uuid
+
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    SystemMessagePromptTemplate,
+)
 from langchain_core.runnables import RunnablePassthrough
 
 from app.core.config import settings
 from app.core.logging import logger
-from app.models.schemas import QueryResponse, SourceChunk, DocumentUploadResponse
-from app.services import vectorstore, cache
-from app.services.llm import get_llm, COT_SYSTEM_PROMPT, COT_HUMAN_TEMPLATE, parse_cot_response
+from app.models.schemas import DocumentUploadResponse, QueryResponse, SourceChunk
+from app.services import cache, vectorstore
+from app.services.llm import COT_HUMAN_TEMPLATE, COT_SYSTEM_PROMPT, get_llm, parse_cot_response
 
 
 def _build_chain():
-    prompt = ChatPromptTemplate.from_messages([
-        SystemMessagePromptTemplate.from_template(COT_SYSTEM_PROMPT),
-        HumanMessagePromptTemplate.from_template(COT_HUMAN_TEMPLATE),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            SystemMessagePromptTemplate.from_template(COT_SYSTEM_PROMPT),
+            HumanMessagePromptTemplate.from_template(COT_HUMAN_TEMPLATE),
+        ]
+    )
     return (
         {"context": RunnablePassthrough(), "question": RunnablePassthrough()}
         | prompt
@@ -72,13 +79,15 @@ def answer_question(question: str, top_k: int) -> QueryResponse:
             f"[Source: {meta.get('filename', 'unknown')}, chunk {meta.get('chunk_index', 0)}]\n"
             f"{doc.page_content}"
         )
-        sources.append(SourceChunk(
-            doc_id=meta.get("doc_id", ""),
-            filename=meta.get("filename", ""),
-            chunk_index=meta.get("chunk_index", 0),
-            content=doc.page_content[:300],
-            score=round(float(score), 4),
-        ))
+        sources.append(
+            SourceChunk(
+                doc_id=meta.get("doc_id", ""),
+                filename=meta.get("filename", ""),
+                chunk_index=meta.get("chunk_index", 0),
+                content=doc.page_content[:300],
+                score=round(float(score), 4),
+            )
+        )
 
     context = "\n\n---\n\n".join(context_parts)
 
@@ -101,7 +110,9 @@ def _extract_text(content: bytes, filename: str, mime: str) -> str:
     """Extract plain text from PDF or text files."""
     if filename.lower().endswith(".pdf") or mime == "application/pdf":
         import io
+
         from pypdf import PdfReader
+
         reader = PdfReader(io.BytesIO(content))
         return "\n\n".join(page.extract_text() or "" for page in reader.pages)
     # Plain text fallback

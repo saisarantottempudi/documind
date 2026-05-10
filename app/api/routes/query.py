@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
+
 from app.core.config import settings
 from app.core.logging import logger
 from app.models.schemas import QueryRequest, QueryResponse
@@ -19,4 +20,4 @@ async def query_documents(request: QueryRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while processing your query.",
-        )
+        ) from exc
