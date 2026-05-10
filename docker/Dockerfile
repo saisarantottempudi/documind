@@ -3,22 +3,21 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
-# Install build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install dependencies into a prefix so we can copy them cleanly
+# Install all runtime deps into /install so the runtime stage stays slim
 COPY pyproject.toml .
-RUN pip install --upgrade pip && \
-    pip install --prefix=/install hatchling && \
-    pip install --prefix=/install \
+RUN pip install --upgrade pip --quiet && \
+    pip install --prefix=/install --quiet \
         "fastapi>=0.115.0" \
         "uvicorn[standard]>=0.32.0" \
         "pydantic>=2.10.0" \
         "pydantic-settings>=2.7.0" \
         "langchain>=0.3.0" \
         "langchain-community>=0.3.0" \
+        "langchain-text-splitters>=0.3.0" \
         "langchain-ollama>=0.2.0" \
         "langchain-chroma>=0.1.0" \
         "chromadb>=0.5.0" \
@@ -44,18 +43,21 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY app/ ./app/
 
-# Pre-download the embedding model so container starts without internet access
-# (CI will cache this layer via Docker layer cache)
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# NOTE: The embedding model (all-MiniLM-L6-v2) is downloaded at first startup
+# via TRANSFORMERS_CACHE / sentence-transformers cache on the mounted volume.
+# This keeps the image lean (~800 MB vs ~1.5 GB with the model baked in)
+# and avoids the 100 MB network download during every CI build.
 
 USER documind
 
 EXPOSE 8000
 
-# Tini handles PID 1 signal forwarding — use Docker's built-in init
+ENV TRANSFORMERS_CACHE=/tmp/hf_cache \
+    HF_HOME=/tmp/hf_cache
+
 ENTRYPOINT ["python", "-m", "uvicorn", "app.main:app", \
             "--host", "0.0.0.0", "--port", "8000", \
             "--workers", "2", "--loop", "uvloop"]
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/liveness')"

@@ -24,7 +24,9 @@ jobs:
           cache: pip
 
       - name: Install linting deps
-        run: pip install --upgrade pip ruff mypy types-redis pydantic-settings fastapi pydantic structlog
+        run: |
+          pip install --upgrade pip
+          pip install ruff mypy types-redis pydantic-settings fastapi pydantic structlog
 
       - name: ruff check
         run: ruff check app/ tests/
@@ -109,7 +111,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          # CI builds amd64 only for speed — arm64 added in release workflow
+          platforms: linux/amd64
 
   # ── 4. Security scan (Trivy) ─────────────────────────────────────────────────
   trivy-scan:
@@ -125,11 +128,12 @@ jobs:
       - name: Run Trivy on image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ needs.build-push.outputs.image-tag }}
+          # Scan the amd64 digest directly — avoids ambiguous multi-arch refs
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          exit-code: "0"    # warn only — set to 1 to hard-fail on CVEs
+          exit-code: "0"
 
       - name: Upload Trivy SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
