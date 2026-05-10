@@ -1,16 +1,16 @@
 name: CD — Deploy to k3d
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g. sha-abc1234)"
+        required: true
 
 jobs:
   deploy:
     name: Helm deploy → k3d (self-hosted or local)
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment: production
 
     steps:
@@ -35,7 +35,7 @@ jobs:
           helm upgrade --install documind ./helm/documind \
             --namespace documind \
             --create-namespace \
-            --set image.tag=sha-${{ github.sha }} \
+            --set image.tag=${{ inputs.image_tag }} \
             --set image.repository=ghcr.io/${{ github.repository_owner }}/documind \
             --wait \
             --timeout 5m
